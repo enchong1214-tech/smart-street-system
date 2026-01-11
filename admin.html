@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>🔒 Admin Control Panel</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    body { font-family: sans-serif; background: #eef2f5; padding: 20px; }
+    /* Hide everything by default until logged in */
+    #adminContent { display: none; }
+    
+    .card { background: white; padding: 20px; margin-bottom: 20px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
+    h2 { margin-top: 0; color: #444; }
+    
+    .warning-box { background: #ffeeba; color: #856404; padding: 10px; border-radius: 5px; display: none; font-weight: bold; margin-bottom: 15px;}
+    
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 14px; }
+    th { background: #007bff; color: white; padding: 10px; text-align: left; }
+    td { border-bottom: 1px solid #ddd; padding: 10px; }
+    
+    .btn { padding: 15px; font-size: 18px; border: none; border-radius: 8px; cursor: pointer; color: white; width: 100%; margin-top: 10px; }
+    .btn-on { background: #28a745; }
+    .btn-off { background: #dc3545; }
+    
+    .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+    .stat-box { background: #f8f9fa; padding: 15px; text-align: center; border-radius: 8px; }
+    .big-num { font-size: 24px; font-weight: bold; color: #007bff; display: block; }
+  </style>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+</head>
+<body>
+
+  <div id="loginOverlay" style="text-align:center; margin-top:50px;">
+    <h2>Admin Access Required</h2>
+    <p>Please enter the system password.</p>
+    <button onclick="checkPass()" style="padding:10px 20px;">Unlock</button>
+  </div>
+
+  <div id="adminContent">
+    <div class="card">
+      <h2>🎛️ System Control</h2>
+      
+      <div id="lowBatWarning" class="warning-box">⚠️ BATTERY LOW - SYSTEM HALTED</div>
+
+      <div class="stat-grid">
+        <div class="stat-box">
+          <span class="label">Battery Level</span>
+          <span id="bat_pct" class="big-num">-- %</span>
+        </div>
+        <div class="stat-box">
+          <span class="label">Voltage</span>
+          <span id="bat_volts" class="big-num">-- V</span>
+        </div>
+      </div>
+      
+      <button id="mainSwitch" class="btn btn-on" onclick="toggleSystem()">Loading...</button>
+    </div>
+
+    <div class="card">
+      <h2>⚡ Bench History</h2>
+      <table id="benchTable">
+        <thead><tr><th>Time Used</th><th>Energy</th><th>Reason</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
+    <div class="card">
+      <h2>💡 Streetlight Events</h2>
+      <table id="lightTable">
+        <thead><tr><th>Duration</th><th>Extra Energy</th><th>Event</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    
+    <a href="index.html" style="display:block; text-align:center; margin-top:20px; color:#666;">Return to Public Page</a>
+  </div>
+
+<script>
+  // --- SIMPLE PASSWORD CHECK ---
+  function checkPass() {
+    var pass = prompt("Enter Admin Password:");
+    if (pass === "1234") { // CHANGE THIS PASSWORD!
+      document.getElementById('loginOverlay').style.display = 'none';
+      document.getElementById('adminContent').style.display = 'block';
+      initFirebase(); // Only start data if password is correct
+    } else {
+      alert("Access Denied");
+    }
+  }
+
+  // --- FIREBASE LOGIC ---
+  function initFirebase() {
+    const firebaseConfig = {
+      apiKey: "PASTE_YOUR_API_KEY_HERE",
+      authDomain: "PASTE_YOUR_PROJECT_ID.firebaseapp.com",
+      databaseURL: "https://PASTE_YOUR_PROJECT_ID-default-rtdb.firebaseio.com",
+      projectId: "PASTE_YOUR_PROJECT_ID",
+    };
+    if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    // 1. LIVE MONITORING
+    db.ref('street_status').on('value', snap => {
+      const data = snap.val() || {};
+      document.getElementById('bat_volts').innerText = (data.battery_volts || 0).toFixed(1) + " V";
+      document.getElementById('bat_pct').innerText = (data.battery_pct || 0) + " %";
+      
+      // Warning
+      if (data.battery_pct < 30) {
+        document.getElementById('lowBatWarning').style.display = 'block';
+      } else {
+        document.getElementById('lowBatWarning').style.display = 'none';
+      }
+
+      // Toggle Button
+      const btn = document.getElementById('mainSwitch');
+      if (data.system_enabled) {
+        btn.innerText = "System Enabled (ON)";
+        btn.className = "btn btn-on";
+      } else {
+        btn.innerText = "System Disabled (OFF)";
+        btn.className = "btn btn-off";
+      }
+    });
+
+    // 2. TOGGLE FUNCTION
+    window.toggleSystem = function() {
+      db.ref('street_status/system_enabled').once('value', snap => {
+        db.ref('street_status/system_enabled').set(!snap.val());
+      });
+    }
+
+    // 3. TABLES
+    db.ref('bench_logs').limitToLast(10).on('child_added', snap => {
+      const d = snap.val();
+      const row = `<tr><td>${d.duration_sec}s</td><td>${d.energy_est_wh.toFixed(3)} Wh</td><td>${d.reason}</td></tr>`;
+      document.getElementById('benchTable').querySelector('tbody').insertAdjacentHTML('afterbegin', row);
+    });
+
+    db.ref('light_logs').limitToLast(10).on('child_added', snap => {
+      const d = snap.val();
+      const row = `<tr><td>${d.duration_sec}s</td><td>${d.energy_est_wh.toFixed(3)} Wh</td><td>${d.event}</td></tr>`;
+      document.getElementById('lightTable').querySelector('tbody').insertAdjacentHTML('afterbegin', row);
+    });
+  }
+</script>
+</body>
+</html>

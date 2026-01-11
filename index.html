@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Green Street Dashboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    body { font-family: 'Segoe UI', sans-serif; background: #e0f7fa; color: #333; text-align: center; margin: 0; padding: 0; }
+    
+    /* HERO SECTION */
+    .hero { background: linear-gradient(135deg, #2e7d32, #66bb6a); color: white; padding: 40px 20px; border-radius: 0 0 20px 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); }
+    h1 { margin: 0; font-size: 2.5em; }
+    p { font-size: 1.2em; opacity: 0.9; }
+
+    /* CARDS */
+    .container { max-width: 600px; margin: -30px auto 20px; padding: 20px; }
+    .card { background: white; padding: 25px; margin-bottom: 20px; border-radius: 15px; box-shadow: 0 8px 20px rgba(0,0,0,0.1); }
+    
+    /* METRICS */
+    .big-stat { font-size: 3em; font-weight: bold; color: #2e7d32; display: block; }
+    .label { font-size: 1.1em; color: #666; text-transform: uppercase; letter-spacing: 1px; }
+
+    /* LIVE STATUS */
+    .status-badge { display: inline-block; padding: 10px 25px; border-radius: 50px; font-weight: bold; color: white; font-size: 1.2em; margin-top: 10px;}
+    .free { background-color: #28a745; box-shadow: 0 0 15px rgba(40, 167, 69, 0.5); }
+    .busy { background-color: #dc3545; box-shadow: 0 0 15px rgba(220, 53, 69, 0.5); }
+
+    /* FOOTER LINK */
+    .admin-link { margin-top: 40px; display: block; color: #aaa; text-decoration: none; font-size: 0.8em; }
+  </style>
+  
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+</head>
+<body>
+
+  <div class="hero">
+    <h1>🌱 Smart Green Street</h1>
+    <p>Powered 100% by Solar Energy</p>
+  </div>
+
+  <div class="container">
+    
+    <div class="card">
+      <span class="label">Total Solar Energy Generated</span>
+      <span id="totalEnergy" class="big-stat">Loading...</span>
+      <p style="margin-top:5px; color:#555;">That's enough to charge <strong id="phoneCount">0</strong> smartphones!</p>
+    </div>
+
+    <div class="card">
+      <span class="label">Smart Bench Status</span><br>
+      <div id="benchStatus" class="status-badge free">Connecting...</div>
+      <p id="benchMsg" style="margin-top:15px;">Scan to start charging if seat is available.</p>
+    </div>
+
+    <div class="card" style="border-left: 10px solid #2e7d32;">
+      <span class="label">CO₂ Emissions Prevented</span>
+      <span id="co2Saved" class="big-stat" style="color: #4caf50;">0 g</span>
+    </div>
+
+    <a href="admin.html" class="admin-link">Admin Login</a>
+  </div>
+
+  <script>
+    // --- PASTE YOUR CONFIG HERE ---
+    const firebaseConfig = {
+      apiKey: "AIzaSyA77Zr4s-pVwlqo4nLqJH8P3bLF1116nCw",
+      authDomain: "smart-street-system.firebaseapp.com",
+      databaseURL: "https://smart-street-system-default-rtdb.asia-southeast1.firebasedatabase.app",
+      projectId: "smart-street-system",
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    // 1. LIVE STATUS
+    db.ref('street_status/bench_occupied').on('value', snap => {
+      const el = document.getElementById('benchStatus');
+      const msg = document.getElementById('benchMsg');
+      if(snap.val()) {
+        el.innerText = "OCCUPIED";
+        el.className = "status-badge busy";
+        msg.innerText = "Someone is currently using green energy.";
+      } else {
+        el.innerText = "AVAILABLE";
+        el.className = "status-badge free";
+        msg.innerText = "The bench is ready for you!";
+      }
+    });
+
+    // 2. CALCULATE TOTAL ENERGY (From Logs)
+    let totalWh = 0;
+    
+    // We listen to bench logs AND light logs to sum them up
+    db.ref('bench_logs').on('child_added', snap => {
+      addEnergy(snap.val().energy_est_wh);
+    });
+    db.ref('light_logs').on('child_added', snap => {
+      addEnergy(snap.val().energy_est_wh);
+    });
+
+    function addEnergy(amount) {
+      if(!amount) return;
+      totalWh += amount;
+      
+      // Update Energy Text
+      document.getElementById('totalEnergy').innerText = totalWh.toFixed(2) + " Wh";
+      
+      // Update Smartphone Calculation (Avg phone battery ~12Wh)
+      document.getElementById('phoneCount').innerText = Math.floor(totalWh / 12);
+      
+      // Update CO2 (Approx 0.4g CO2 saved per Wh of Solar vs Coal)
+      document.getElementById('co2Saved').innerText = (totalWh * 0.4).toFixed(1) + " g";
+    }
+  </script>
+</body>
+</html>
