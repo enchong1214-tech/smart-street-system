@@ -1,206 +1,251 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>⚡ Live Admin Monitor</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <style>
-    body { font-family: 'Segoe UI', sans-serif; background: #1a1a2e; color: #fff; padding: 20px; }
-    #adminContent { display: none; }
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Street Admin</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     
-    /* CARDS */
-    .card { background: #16213e; padding: 25px; margin-bottom: 20px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); border: 1px solid #0f3460; }
-    h2 { margin-top: 0; color: #e94560; font-size: 1.5em; letter-spacing: 1px; }
-    
-    /* TOAST NOTIFICATIONS */
-    #toast-container { position: fixed; top: 20px; right: 20px; z-index: 9999; }
-    .toast { background: #333; color: white; padding: 15px 25px; margin-bottom: 10px; border-radius: 5px; display: flex; animation: slideIn 0.3s, fadeOut 0.5s 2.5s forwards; }
-    .toast.success { border-left: 5px solid #2ecc71; }
-    .toast.error { border-left: 5px solid #e74c3c; }
-    @keyframes slideIn { from { transform: translateX(100%); } to { transform: translateX(0); } }
-    @keyframes fadeOut { from { opacity: 1; } to { opacity: 0; } }
+    <style>
+        :root {
+            /* Bright, Modern Color Palette */
+            --bg-body: #f3f6f9;       /* Very light grey-blue background */
+            --bg-card: #ffffff;       /* Pure white for cards */
+            --text-primary: #2c3e50;  /* Dark blue-grey for main text */
+            --text-secondary: #7f8c8d;/* Muted grey for labels */
+            --accent-color: #3498db;  /* Professional Blue */
+            --success-color: #2ecc71; /* Green for status */
+            --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+            --radius: 12px;
+        }
 
-    /* TABLES */
-    table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 14px; }
-    th { background: #0f3460; color: #4db5ff; padding: 12px; text-align: left; border-bottom: 2px solid #e94560; }
-    td { border-bottom: 1px solid #333; padding: 12px; color: #ddd; }
-    tr:first-child { animation: flash 1s; } 
-    @keyframes flash { from { background-color: #e94560; } to { background-color: transparent; } }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Inter', sans-serif;
+        }
 
-    /* BUTTONS */
-    .btn { padding: 15px; font-size: 16px; border: none; border-radius: 8px; cursor: pointer; color: white; width: 100%; font-weight: bold; text-transform: uppercase; }
-    .btn-on { background: #00b894; box-shadow: 0 0 15px rgba(0,184,148,0.4); }
-    .btn-off { background: #d63031; box-shadow: 0 0 15px rgba(214,48,49,0.4); }
-    .btn-excel { background: #0984e3; margin-top: 10px; font-size: 14px; padding: 10px; } 
+        body {
+            background-color: var(--bg-body);
+            color: var(--text-primary);
+            padding: 20px;
+        }
 
-    /* GRID */
-    .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px; }
-    .stat-box { background: #0f3460; padding: 20px; text-align: center; border-radius: 12px; }
-    .big-num { font-size: 32px; font-weight: bold; color: #4db5ff; display: block; }
-  </style>
-  
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+        /* Header Styling */
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            padding: 0 10px;
+        }
+
+        h1 {
+            font-weight: 600;
+            font-size: 1.8rem;
+            color: var(--text-primary);
+        }
+
+        .status-badge {
+            background-color: #e8f8f5;
+            color: var(--success-color);
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            background-color: var(--success-color);
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        /* Dashboard Grid */
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+        }
+
+        /* Modern Card Styling */
+        .card {
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            padding: 25px;
+            box-shadow: var(--shadow);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 15px;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .card-icon {
+            font-size: 1.2rem;
+            color: var(--accent-color);
+        }
+
+        .card-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        .card-subtext {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            margin-top: 5px;
+        }
+
+        /* Specific Control Styles (Toggle Switch) */
+        .control-group {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-top: 10px;
+        }
+
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 50px;
+            height: 26px;
+        }
+
+        .switch input { opacity: 0; width: 0; height: 0; }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 34px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 20px;
+            width: 20px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+
+        input:checked + .slider {
+            background-color: var(--accent-color);
+        }
+
+        input:checked + .slider:before {
+            transform: translateX(24px);
+        }
+
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(46, 204, 113, 0.4); }
+            70% { box-shadow: 0 0 0 10px rgba(46, 204, 113, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(46, 204, 113, 0); }
+        }
+    </style>
 </head>
 <body>
 
-  <div id="toast-container"></div>
+    <header>
+        <div>
+            <h1>Dashboard</h1>
+            <p style="color: var(--text-secondary); font-size: 0.9rem;">Smart Street Management System</p>
+        </div>
+        <div class="status-badge">
+            <div class="status-dot"></div>
+            System Online
+        </div>
+    </header>
 
-  <div id="loginOverlay" style="text-align:center; margin-top:100px;">
-    <h2 style="color:white;">🔐 SECURE ADMIN ACCESS</h2>
-    <input type="password" id="adminPass" placeholder="Enter PIN" style="padding:15px; border-radius:30px; border:none; text-align:center; width: 200px;">
-    <br><br>
-    <button onclick="checkPass()" style="padding:10px 30px; border-radius:30px; border:none; background:#e94560; color:white; cursor:pointer;">UNLOCK SYSTEM</button>
-  </div>
+    <div class="dashboard-grid">
+        
+        <div class="card">
+            <div class="card-header">
+                <i class="fa-solid fa-clock card-icon"></i>
+                <span>System Uptime</span>
+            </div>
+            <div class="card-value" id="uptime">02:15:30</div>
+            <div class="card-subtext">Active since last reboot</div>
+        </div>
 
-  <div id="adminContent">
-    
-    <div class="card">
-      <div style="display:flex; justify-content:space-between;">
-        <h2>⚡ SYSTEM STATUS</h2>
-        <div style="color:#00b894; font-weight:bold;">● LIVE CONNECTED</div>
-      </div>
-      <div class="stat-grid">
-        <div class="stat-box"> <span class="label">Battery</span> <span id="bat_pct" class="big-num">-- %</span> </div>
-        <div class="stat-box"> <span class="label">Voltage</span> <span id="bat_volts" class="big-num">-- V</span> </div>
-      </div>
-      <button id="mainSwitch" class="btn btn-on" onclick="toggleSystem()">INITIALIZING...</button>
+        <div class="card">
+            <div class="card-header">
+                <i class="fa-solid fa-sun card-icon"></i>
+                <span>Light Intensity</span>
+            </div>
+            <div class="card-value">78%</div>
+            <div class="card-subtext">Environment Status: Bright</div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <i class="fa-solid fa-person-walking card-icon"></i>
+                <span>Motion Sensor</span>
+            </div>
+            <div class="card-value" style="color: var(--success-color);">Detected</div>
+            <div class="card-subtext">Pedestrian on sidewalk</div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <i class="fa-solid fa-lightbulb card-icon"></i>
+                <span>Streetlight Control</span>
+            </div>
+            <div class="control-group">
+                <span style="font-weight: 600;">Manual Override</span>
+                <label class="switch">
+                    <input type="checkbox" id="ledToggle" onchange="toggleLed()">
+                    <span class="slider"></span>
+                </label>
+            </div>
+            <div class="card-subtext" id="ledStatus">Light is currently OFF</div>
+        </div>
+
     </div>
 
-    <div class="card">
-      <h2>📈 LIVE ENERGY CONSUMPTION</h2>
-      <canvas id="liveChart" style="max-height: 300px;"></canvas>
-    </div>
-
-    <div class="card">
-      <h2>📝 RECENT LOGS</h2>
-      <button onclick="downloadExcel()" class="btn btn-excel">📥 EXPORT TO EXCEL</button>
-      <table id="logTable">
-        <thead><tr><th>Time</th><th>Type</th><th>Duration</th><th>Energy</th><th>Event</th></tr></thead>
-        <tbody></tbody>
-      </table>
-    </div>
-
-    <a href="index.html" style="display:block; text-align:center; margin-top:30px; text-decoration:none; color:#666;">EXIT ADMIN MODE</a>
-  </div>
-
-<script>
-  // --- CONFIG ---
-  const firebaseConfig = {
-      apiKey: "AIzaSyA77Zr4s-pVwlqo4nLqJH8P3bLF1116nCw",
-      authDomain: "smart-street-system.firebaseapp.com",
-      databaseURL: "https://smart-street-system-default-rtdb.asia-southeast1.firebasedatabase.app",
-      projectId: "smart-street-system",
-  };
-
-  // --- LOGIC ---
-  function showToast(msg, type) {
-      const container = document.getElementById('toast-container');
-      const toast = document.createElement('div');
-      toast.className = `toast ${type}`;
-      toast.innerText = msg;
-      container.appendChild(toast);
-      setTimeout(() => toast.remove(), 3000);
-  }
-
-  function checkPass() {
-    if (document.getElementById('adminPass').value === "1234") {
-      document.getElementById('loginOverlay').style.display = 'none';
-      document.getElementById('adminContent').style.display = 'block';
-      showToast("Access Granted", "success");
-      initFirebase(); 
-    } else { showToast("Access Denied", "error"); }
-  }
-
-  let chartInstance = null;
-  let allLogs = [];
-
-  function initFirebase() {
-    if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
-    const db = firebase.database();
-
-    // A. LIVE STATUS
-    db.ref('street_status').on('value', snap => {
-      const d = snap.val() || {};
-      document.getElementById('bat_volts').innerText = (d.battery_volts || 0).toFixed(1) + " V";
-      document.getElementById('bat_pct').innerText = (d.battery_pct || 0) + " %";
-      
-      const btn = document.getElementById('mainSwitch');
-      if (d.system_enabled) { btn.innerText = "SYSTEM ACTIVE (ON)"; btn.className = "btn btn-on"; }
-      else { btn.innerText = "SYSTEM DISABLED (OFF)"; btn.className = "btn btn-off"; }
-    });
-
-    window.toggleSystem = function() {
-      db.ref('street_status/system_enabled').once('value', snap => {
-          db.ref('street_status/system_enabled').set(!snap.val());
-          showToast("System State Toggled", "success");
-      });
-    }
-
-    // B. GRAPH SETUP
-    const ctx = document.getElementById('liveChart').getContext('2d');
-    chartInstance = new Chart(ctx, {
-        type: 'line',
-        data: { labels: [], datasets: [{ label: 'Energy (Wh)', data: [], borderColor: '#4db5ff', backgroundColor: 'rgba(77, 181, 255, 0.2)', borderWidth: 3, fill: true, tension: 0.4 }] },
-        options: { responsive: true, scales: { x: { ticks: {color:'#aaa'}, grid:{color:'#333'} }, y: { beginAtZero: true, ticks: {color:'#aaa'}, grid:{color:'#333'} } }, plugins: { legend: { labels: { color: 'white' } } } }
-    });
-
-    // C. LISTEN FOR LOGS
-    listenForLogs(db, 'bench_logs', 'BENCH');
-    listenForLogs(db, 'light_logs', 'LIGHT');
-  }
-
-  function listenForLogs(db, path, type) {
-    db.ref(path).limitToLast(1).on('child_added', snap => {
-        const d = snap.val();
-        const dateObj = getDateFromId(snap.key); // Magic Decoder
-        const timeNow = dateObj.toLocaleTimeString();
-        const fullDate = dateObj.toLocaleString();
-
-        const row = `<tr>
-            <td><span style="color:#aaa">${fullDate}</span></td>
-            <td style="font-weight:bold; color: ${type==='BENCH'?'#00b894':'#e17055'}">${type}</td>
-            <td>${d.duration_sec}s</td>
-            <td>${d.energy_est_wh.toFixed(4)}</td>
-            <td>${d.event || d.reason}</td>
-        </tr>`;
-        document.getElementById('logTable').querySelector('tbody').insertAdjacentHTML('afterbegin', row);
-
-        addGraphData(timeNow, d.energy_est_wh);
-        allLogs.push({ date: fullDate, type: type, ...d });
-    });
-  }
-
-  function addGraphData(label, data) {
-      if (!chartInstance) return;
-      chartInstance.data.labels.push(label);
-      chartInstance.data.datasets[0].data.push(data);
-      if (chartInstance.data.labels.length > 10) {
-          chartInstance.data.labels.shift();
-          chartInstance.data.datasets[0].data.shift();
-      }
-      chartInstance.update();
-  }
-
-  // --- MAGIC DATE DECODER ---
-  function getDateFromId(pushId) {
-    const PUSH_CHARS = "-0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ_abcdefghijklmnopqrstuvwxyz";
-    let time = 0;
-    for (let i = 0; i < 8; i++) time = time * 64 + PUSH_CHARS.indexOf(pushId.charAt(i));
-    return new Date(time);
-  }
-
-  // --- EXCEL ---
-  window.downloadExcel = function() {
-    let csv = "data:text/csv;charset=utf-8,Time,Type,Duration(s),Energy(Wh),Reason\n";
-    allLogs.forEach(r => csv += `${r.date},${r.type},${r.duration_sec},${r.energy_est_wh},${r.event || r.reason}\n`);
-    const link = document.createElement("a");
-    link.href = encodeURI(csv);
-    link.download = "SmartStreet_Report.csv";
-    document.body.appendChild(link);
-    link.click();
-    showToast("Report Downloaded Successfully", "success");
-  }
-</script>
+    <script>
+        // Simple script to update the toggle text
+        function toggleLed() {
+            const checkBox = document.getElementById("ledToggle");
+            const statusText = document.getElementById("ledStatus");
+            if (checkBox.checked == true){
+                statusText.innerText = "Light is currently ON";
+                statusText.style.color = "var(--accent-color)";
+            } else {
+                statusText.innerText = "Light is currently OFF";
+                statusText.style.color = "var(--text-secondary)";
+            }
+        }
+    </script>
 </body>
 </html>
