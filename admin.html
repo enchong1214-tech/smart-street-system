@@ -1,147 +1,205 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>🔒 Admin Control Panel</title>
+  <title>⚡ Live Admin Monitor</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <style>
-    body { font-family: sans-serif; background: #eef2f5; padding: 20px; }
-    /* Hide everything by default until logged in */
+    body { font-family: 'Segoe UI', sans-serif; background: #1a1a2e; color: #fff; padding: 20px; }
     #adminContent { display: none; }
     
-    .card { background: white; padding: 20px; margin-bottom: 20px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
-    h2 { margin-top: 0; color: #444; }
+    /* CARDS */
+    .card { background: #16213e; padding: 25px; margin-bottom: 20px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); border: 1px solid #0f3460; }
+    h2 { margin-top: 0; color: #e94560; font-size: 1.5em; letter-spacing: 1px; }
     
-    .warning-box { background: #ffeeba; color: #856404; padding: 10px; border-radius: 5px; display: none; font-weight: bold; margin-bottom: 15px;}
-    
-    table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 14px; }
-    th { background: #007bff; color: white; padding: 10px; text-align: left; }
-    td { border-bottom: 1px solid #ddd; padding: 10px; }
-    
-    .btn { padding: 15px; font-size: 18px; border: none; border-radius: 8px; cursor: pointer; color: white; width: 100%; margin-top: 10px; }
-    .btn-on { background: #28a745; }
-    .btn-off { background: #dc3545; }
-    
-    .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
-    .stat-box { background: #f8f9fa; padding: 15px; text-align: center; border-radius: 8px; }
-    .big-num { font-size: 24px; font-weight: bold; color: #007bff; display: block; }
+    /* TOAST NOTIFICATIONS */
+    #toast-container { position: fixed; top: 20px; right: 20px; z-index: 9999; }
+    .toast { background: #333; color: white; padding: 15px 25px; margin-bottom: 10px; border-radius: 5px; display: flex; animation: slideIn 0.3s, fadeOut 0.5s 2.5s forwards; }
+    .toast.success { border-left: 5px solid #2ecc71; }
+    .toast.error { border-left: 5px solid #e74c3c; }
+    @keyframes slideIn { from { transform: translateX(100%); } to { transform: translateX(0); } }
+    @keyframes fadeOut { from { opacity: 1; } to { opacity: 0; } }
+
+    /* TABLES */
+    table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 14px; }
+    th { background: #0f3460; color: #4db5ff; padding: 12px; text-align: left; border-bottom: 2px solid #e94560; }
+    td { border-bottom: 1px solid #333; padding: 12px; color: #ddd; }
+    tr:first-child { animation: flash 1s; } 
+    @keyframes flash { from { background-color: #e94560; } to { background-color: transparent; } }
+
+    /* BUTTONS */
+    .btn { padding: 15px; font-size: 16px; border: none; border-radius: 8px; cursor: pointer; color: white; width: 100%; font-weight: bold; text-transform: uppercase; }
+    .btn-on { background: #00b894; box-shadow: 0 0 15px rgba(0,184,148,0.4); }
+    .btn-off { background: #d63031; box-shadow: 0 0 15px rgba(214,48,49,0.4); }
+    .btn-excel { background: #0984e3; margin-top: 10px; font-size: 14px; padding: 10px; } 
+
+    /* GRID */
+    .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px; }
+    .stat-box { background: #0f3460; padding: 20px; text-align: center; border-radius: 12px; }
+    .big-num { font-size: 32px; font-weight: bold; color: #4db5ff; display: block; }
   </style>
+  
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
 </head>
 <body>
 
-  <div id="loginOverlay" style="text-align:center; margin-top:50px;">
-    <h2>Admin Access Required</h2>
-    <p>Please enter the system password.</p>
-    <button onclick="checkPass()" style="padding:10px 20px;">Unlock</button>
+  <div id="toast-container"></div>
+
+  <div id="loginOverlay" style="text-align:center; margin-top:100px;">
+    <h2 style="color:white;">🔐 SECURE ADMIN ACCESS</h2>
+    <input type="password" id="adminPass" placeholder="Enter PIN" style="padding:15px; border-radius:30px; border:none; text-align:center; width: 200px;">
+    <br><br>
+    <button onclick="checkPass()" style="padding:10px 30px; border-radius:30px; border:none; background:#e94560; color:white; cursor:pointer;">UNLOCK SYSTEM</button>
   </div>
 
   <div id="adminContent">
-    <div class="card">
-      <h2>🎛️ System Control</h2>
-      
-      <div id="lowBatWarning" class="warning-box">⚠️ BATTERY LOW - SYSTEM HALTED</div>
-
-      <div class="stat-grid">
-        <div class="stat-box">
-          <span class="label">Battery Level</span>
-          <span id="bat_pct" class="big-num">-- %</span>
-        </div>
-        <div class="stat-box">
-          <span class="label">Voltage</span>
-          <span id="bat_volts" class="big-num">-- V</span>
-        </div>
-      </div>
-      
-      <button id="mainSwitch" class="btn btn-on" onclick="toggleSystem()">Loading...</button>
-    </div>
-
-    <div class="card">
-      <h2>⚡ Bench History</h2>
-      <table id="benchTable">
-        <thead><tr><th>Time Used</th><th>Energy</th><th>Reason</th></tr></thead>
-        <tbody></tbody>
-      </table>
-    </div>
-
-    <div class="card">
-      <h2>💡 Streetlight Events</h2>
-      <table id="lightTable">
-        <thead><tr><th>Duration</th><th>Extra Energy</th><th>Event</th></tr></thead>
-        <tbody></tbody>
-      </table>
-    </div>
     
-    <a href="index.html" style="display:block; text-align:center; margin-top:20px; color:#666;">Return to Public Page</a>
+    <div class="card">
+      <div style="display:flex; justify-content:space-between;">
+        <h2>⚡ SYSTEM STATUS</h2>
+        <div style="color:#00b894; font-weight:bold;">● LIVE CONNECTED</div>
+      </div>
+      <div class="stat-grid">
+        <div class="stat-box"> <span class="label">Battery</span> <span id="bat_pct" class="big-num">-- %</span> </div>
+        <div class="stat-box"> <span class="label">Voltage</span> <span id="bat_volts" class="big-num">-- V</span> </div>
+      </div>
+      <button id="mainSwitch" class="btn btn-on" onclick="toggleSystem()">INITIALIZING...</button>
+    </div>
+
+    <div class="card">
+      <h2>📈 LIVE ENERGY CONSUMPTION</h2>
+      <canvas id="liveChart" style="max-height: 300px;"></canvas>
+    </div>
+
+    <div class="card">
+      <h2>📝 RECENT LOGS</h2>
+      <button onclick="downloadExcel()" class="btn btn-excel">📥 EXPORT TO EXCEL</button>
+      <table id="logTable">
+        <thead><tr><th>Time</th><th>Type</th><th>Duration</th><th>Energy</th><th>Event</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
+    <a href="index.html" style="display:block; text-align:center; margin-top:30px; text-decoration:none; color:#666;">EXIT ADMIN MODE</a>
   </div>
 
 <script>
-  // --- SIMPLE PASSWORD CHECK ---
-  function checkPass() {
-    var pass = prompt("Enter Admin Password:");
-    if (pass === "1234") { // CHANGE THIS PASSWORD!
-      document.getElementById('loginOverlay').style.display = 'none';
-      document.getElementById('adminContent').style.display = 'block';
-      initFirebase(); // Only start data if password is correct
-    } else {
-      alert("Access Denied");
-    }
+  // --- CONFIG ---
+  const firebaseConfig = {
+      apiKey: "AIzaSyA77Zr4s-pVwlqo4nLqJH8P3bLF1116nCw",
+      authDomain: "smart-street-system.firebaseapp.com",
+      databaseURL: "https://smart-street-system-default-rtdb.asia-southeast1.firebasedatabase.app",
+      projectId: "smart-street-system",
+  };
+
+  // --- LOGIC ---
+  function showToast(msg, type) {
+      const container = document.getElementById('toast-container');
+      const toast = document.createElement('div');
+      toast.className = `toast ${type}`;
+      toast.innerText = msg;
+      container.appendChild(toast);
+      setTimeout(() => toast.remove(), 3000);
   }
 
-  // --- FIREBASE LOGIC ---
+  function checkPass() {
+    if (document.getElementById('adminPass').value === "1234") {
+      document.getElementById('loginOverlay').style.display = 'none';
+      document.getElementById('adminContent').style.display = 'block';
+      showToast("Access Granted", "success");
+      initFirebase(); 
+    } else { showToast("Access Denied", "error"); }
+  }
+
+  let chartInstance = null;
+  let allLogs = [];
+
   function initFirebase() {
-    const firebaseConfig = {
-      apiKey: "PASTE_YOUR_API_KEY_HERE",
-      authDomain: "PASTE_YOUR_PROJECT_ID.firebaseapp.com",
-      databaseURL: "https://PASTE_YOUR_PROJECT_ID-default-rtdb.firebaseio.com",
-      projectId: "PASTE_YOUR_PROJECT_ID",
-    };
     if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
-    // 1. LIVE MONITORING
+    // A. LIVE STATUS
     db.ref('street_status').on('value', snap => {
-      const data = snap.val() || {};
-      document.getElementById('bat_volts').innerText = (data.battery_volts || 0).toFixed(1) + " V";
-      document.getElementById('bat_pct').innerText = (data.battery_pct || 0) + " %";
+      const d = snap.val() || {};
+      document.getElementById('bat_volts').innerText = (d.battery_volts || 0).toFixed(1) + " V";
+      document.getElementById('bat_pct').innerText = (d.battery_pct || 0) + " %";
       
-      // Warning
-      if (data.battery_pct < 30) {
-        document.getElementById('lowBatWarning').style.display = 'block';
-      } else {
-        document.getElementById('lowBatWarning').style.display = 'none';
-      }
-
-      // Toggle Button
       const btn = document.getElementById('mainSwitch');
-      if (data.system_enabled) {
-        btn.innerText = "System Enabled (ON)";
-        btn.className = "btn btn-on";
-      } else {
-        btn.innerText = "System Disabled (OFF)";
-        btn.className = "btn btn-off";
-      }
+      if (d.system_enabled) { btn.innerText = "SYSTEM ACTIVE (ON)"; btn.className = "btn btn-on"; }
+      else { btn.innerText = "SYSTEM DISABLED (OFF)"; btn.className = "btn btn-off"; }
     });
 
-    // 2. TOGGLE FUNCTION
     window.toggleSystem = function() {
       db.ref('street_status/system_enabled').once('value', snap => {
-        db.ref('street_status/system_enabled').set(!snap.val());
+          db.ref('street_status/system_enabled').set(!snap.val());
+          showToast("System State Toggled", "success");
       });
     }
 
-    // 3. TABLES
-    db.ref('bench_logs').limitToLast(10).on('child_added', snap => {
-      const d = snap.val();
-      const row = `<tr><td>${d.duration_sec}s</td><td>${d.energy_est_wh.toFixed(3)} Wh</td><td>${d.reason}</td></tr>`;
-      document.getElementById('benchTable').querySelector('tbody').insertAdjacentHTML('afterbegin', row);
+    // B. GRAPH SETUP
+    const ctx = document.getElementById('liveChart').getContext('2d');
+    chartInstance = new Chart(ctx, {
+        type: 'line',
+        data: { labels: [], datasets: [{ label: 'Energy (Wh)', data: [], borderColor: '#4db5ff', backgroundColor: 'rgba(77, 181, 255, 0.2)', borderWidth: 3, fill: true, tension: 0.4 }] },
+        options: { responsive: true, scales: { x: { ticks: {color:'#aaa'}, grid:{color:'#333'} }, y: { beginAtZero: true, ticks: {color:'#aaa'}, grid:{color:'#333'} } }, plugins: { legend: { labels: { color: 'white' } } } }
     });
 
-    db.ref('light_logs').limitToLast(10).on('child_added', snap => {
-      const d = snap.val();
-      const row = `<tr><td>${d.duration_sec}s</td><td>${d.energy_est_wh.toFixed(3)} Wh</td><td>${d.event}</td></tr>`;
-      document.getElementById('lightTable').querySelector('tbody').insertAdjacentHTML('afterbegin', row);
+    // C. LISTEN FOR LOGS
+    listenForLogs(db, 'bench_logs', 'BENCH');
+    listenForLogs(db, 'light_logs', 'LIGHT');
+  }
+
+  function listenForLogs(db, path, type) {
+    db.ref(path).limitToLast(1).on('child_added', snap => {
+        const d = snap.val();
+        const dateObj = getDateFromId(snap.key); // Magic Decoder
+        const timeNow = dateObj.toLocaleTimeString();
+        const fullDate = dateObj.toLocaleString();
+
+        const row = `<tr>
+            <td><span style="color:#aaa">${fullDate}</span></td>
+            <td style="font-weight:bold; color: ${type==='BENCH'?'#00b894':'#e17055'}">${type}</td>
+            <td>${d.duration_sec}s</td>
+            <td>${d.energy_est_wh.toFixed(4)}</td>
+            <td>${d.event || d.reason}</td>
+        </tr>`;
+        document.getElementById('logTable').querySelector('tbody').insertAdjacentHTML('afterbegin', row);
+
+        addGraphData(timeNow, d.energy_est_wh);
+        allLogs.push({ date: fullDate, type: type, ...d });
     });
+  }
+
+  function addGraphData(label, data) {
+      if (!chartInstance) return;
+      chartInstance.data.labels.push(label);
+      chartInstance.data.datasets[0].data.push(data);
+      if (chartInstance.data.labels.length > 10) {
+          chartInstance.data.labels.shift();
+          chartInstance.data.datasets[0].data.shift();
+      }
+      chartInstance.update();
+  }
+
+  // --- MAGIC DATE DECODER ---
+  function getDateFromId(pushId) {
+    const PUSH_CHARS = "-0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ_abcdefghijklmnopqrstuvwxyz";
+    let time = 0;
+    for (let i = 0; i < 8; i++) time = time * 64 + PUSH_CHARS.indexOf(pushId.charAt(i));
+    return new Date(time);
+  }
+
+  // --- EXCEL ---
+  window.downloadExcel = function() {
+    let csv = "data:text/csv;charset=utf-8,Time,Type,Duration(s),Energy(Wh),Reason\n";
+    allLogs.forEach(r => csv += `${r.date},${r.type},${r.duration_sec},${r.energy_est_wh},${r.event || r.reason}\n`);
+    const link = document.createElement("a");
+    link.href = encodeURI(csv);
+    link.download = "SmartStreet_Report.csv";
+    document.body.appendChild(link);
+    link.click();
+    showToast("Report Downloaded Successfully", "success");
   }
 </script>
 </body>
