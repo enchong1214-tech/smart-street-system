@@ -4,174 +4,73 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Smart Street Admin</title>
+    
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
     
     <style>
         :root {
             /* Bright, Modern Color Palette */
-            --bg-body: #f3f6f9;       /* Very light grey-blue background */
-            --bg-card: #ffffff;       /* Pure white for cards */
-            --text-primary: #2c3e50;  /* Dark blue-grey for main text */
-            --text-secondary: #7f8c8d;/* Muted grey for labels */
-            --accent-color: #3498db;  /* Professional Blue */
-            --success-color: #2ecc71; /* Green for status */
+            --bg-body: #f3f6f9;       
+            --bg-card: #ffffff;       
+            --text-primary: #2c3e50;  
+            --text-secondary: #555555; /* Darker grey for better visibility */
+            --accent-color: #3498db;  
+            --success-color: #2ecc71; 
+            --danger-color: #e74c3c; 
             --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
             --radius: 12px;
         }
 
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            font-family: 'Inter', sans-serif;
-        }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
+        body { background-color: var(--bg-body); color: var(--text-primary); padding: 20px; }
 
-        body {
-            background-color: var(--bg-body);
-            color: var(--text-primary);
-            padding: 20px;
-        }
+        /* Header */
+        header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; padding: 0 10px; }
+        h1 { font-weight: 600; font-size: 1.8rem; color: var(--text-primary); }
+        .status-badge { background-color: #e8f8f5; color: var(--success-color); padding: 6px 12px; border-radius: 20px; font-size: 0.9rem; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+        .status-dot { width: 8px; height: 8px; background-color: var(--success-color); border-radius: 50%; animation: pulse 2s infinite; }
 
-        /* Header Styling */
-        header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 30px;
-            padding: 0 10px;
-        }
+        /* Grid Layouts */
+        .dashboard-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; margin-bottom: 20px; }
+        .content-grid { display: grid; grid-template-columns: 1fr; gap: 20px; }
 
-        h1 {
-            font-weight: 600;
-            font-size: 1.8rem;
-            color: var(--text-primary);
-        }
+        /* Card Styling */
+        .card { background: var(--bg-card); border-radius: var(--radius); padding: 25px; box-shadow: var(--shadow); transition: transform 0.2s ease, box-shadow 0.2s ease; display: flex; flex-direction: column; justify-content: space-between; }
+        .card:hover { transform: translateY(-3px); box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); }
+        
+        .card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 15px; color: var(--text-secondary); font-size: 0.9rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+        .card-header-left { display: flex; align-items: center; gap: 12px; }
+        .card-icon { font-size: 1.2rem; color: var(--accent-color); }
+        .card-value { font-size: 2rem; font-weight: 700; color: var(--text-primary); }
+        .card-subtext { font-size: 0.85rem; color: var(--text-secondary); margin-top: 5px; }
 
-        .status-badge {
-            background-color: #e8f8f5;
-            color: var(--success-color);
-            padding: 6px 12px;
-            border-radius: 20px;
-            font-size: 0.9rem;
-            font-weight: 600;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .status-dot {
-            width: 8px;
-            height: 8px;
-            background-color: var(--success-color);
-            border-radius: 50%;
-            animation: pulse 2s infinite;
-        }
-
-        /* Dashboard Grid */
-        .dashboard-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-            gap: 20px;
-        }
-
-        /* Modern Card Styling */
-        .card {
-            background: var(--bg-card);
-            border-radius: var(--radius);
-            padding: 25px;
-            box-shadow: var(--shadow);
-            transition: transform 0.2s ease, box-shadow 0.2s ease;
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-        }
-
-        .card:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
-        }
-
-        .card-header {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            margin-bottom: 15px;
-            color: var(--text-secondary);
-            font-size: 0.9rem;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-
-        .card-icon {
-            font-size: 1.2rem;
-            color: var(--accent-color);
-        }
-
-        .card-value {
-            font-size: 2rem;
-            font-weight: 700;
-            color: var(--text-primary);
-        }
-
-        .card-subtext {
-            font-size: 0.85rem;
-            color: var(--text-secondary);
-            margin-top: 5px;
-        }
-
-        /* Specific Control Styles (Toggle Switch) */
-        .control-group {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-top: 10px;
-        }
-
-        .switch {
-            position: relative;
-            display: inline-block;
-            width: 50px;
-            height: 26px;
-        }
-
+        /* Switch Styling */
+        .control-group { display: flex; align-items: center; justify-content: space-between; margin-top: 10px; }
+        .switch { position: relative; display: inline-block; width: 50px; height: 26px; }
         .switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .4s; border-radius: 34px; }
+        .slider:before { position: absolute; content: ""; height: 20px; width: 20px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%; }
+        input:checked + .slider { background-color: var(--accent-color); }
+        input:checked + .slider:before { transform: translateX(24px); }
 
-        .slider {
-            position: absolute;
-            cursor: pointer;
-            top: 0; left: 0; right: 0; bottom: 0;
-            background-color: #ccc;
-            transition: .4s;
-            border-radius: 34px;
-        }
+        /* Table Styling */
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.9em; }
+        th { text-align: left; padding: 12px; color: var(--text-primary); border-bottom: 2px solid #ddd; font-weight: 700; }
+        td { padding: 12px; border-bottom: 1px solid #eee; color: var(--text-primary); }
+        .btn-download { background-color: var(--accent-color); color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 0.85rem; transition: 0.2s; }
+        .btn-download:hover { background-color: #2980b9; }
 
-        .slider:before {
-            position: absolute;
-            content: "";
-            height: 20px;
-            width: 20px;
-            left: 3px;
-            bottom: 3px;
-            background-color: white;
-            transition: .4s;
-            border-radius: 50%;
-        }
-
-        input:checked + .slider {
-            background-color: var(--accent-color);
-        }
-
-        input:checked + .slider:before {
-            transform: translateX(24px);
-        }
-
-        @keyframes pulse {
-            0% { box-shadow: 0 0 0 0 rgba(46, 204, 113, 0.4); }
-            70% { box-shadow: 0 0 0 10px rgba(46, 204, 113, 0); }
-            100% { box-shadow: 0 0 0 0 rgba(46, 204, 113, 0); }
-        }
+        /* Toast & Animations */
+        #toast { visibility: hidden; min-width: 250px; background-color: #333; color: #fff; text-align: center; border-radius: 8px; padding: 16px; position: fixed; z-index: 99; left: 50%; bottom: 30px; transform: translateX(-50%); box-shadow: 0 5px 15px rgba(0,0,0,0.2); }
+        #toast.show { visibility: visible; animation: fadein 0.5s, fadeout 0.5s 2.5s; }
+        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(46, 204, 113, 0.4); } 70% { box-shadow: 0 0 0 10px rgba(46, 204, 113, 0); } 100% { box-shadow: 0 0 0 0 rgba(46, 204, 113, 0); } }
+        @keyframes fadein { from {bottom: 0; opacity: 0;} to {bottom: 30px; opacity: 1;} }
+        @keyframes fadeout { from {bottom: 30px; opacity: 1;} to {bottom: 0; opacity: 0;} }
     </style>
 </head>
 <body>
@@ -188,64 +87,148 @@
     </header>
 
     <div class="dashboard-grid">
-        
         <div class="card">
             <div class="card-header">
-                <i class="fa-solid fa-clock card-icon"></i>
-                <span>System Uptime</span>
+                <div class="card-header-left">
+                    <i class="fa-solid fa-battery-half card-icon"></i>
+                    <span>Battery Level</span>
+                </div>
             </div>
-            <div class="card-value" id="uptime">02:15:30</div>
-            <div class="card-subtext">Active since last reboot</div>
+            <div class="card-value" id="bat_pct">-- %</div>
+            <div class="card-subtext">Current Capacity</div>
         </div>
 
         <div class="card">
             <div class="card-header">
-                <i class="fa-solid fa-sun card-icon"></i>
-                <span>Light Intensity</span>
+                <div class="card-header-left">
+                    <i class="fa-solid fa-bolt card-icon"></i>
+                    <span>System Voltage</span>
+                </div>
             </div>
-            <div class="card-value">78%</div>
-            <div class="card-subtext">Environment Status: Bright</div>
+            <div class="card-value" id="bat_volts">-- V</div>
+            <div class="card-subtext">Optimal Range: 11.5V - 13.5V</div>
         </div>
 
         <div class="card">
             <div class="card-header">
-                <i class="fa-solid fa-person-walking card-icon"></i>
-                <span>Motion Sensor</span>
-            </div>
-            <div class="card-value" style="color: var(--success-color);">Detected</div>
-            <div class="card-subtext">Pedestrian on sidewalk</div>
-        </div>
-
-        <div class="card">
-            <div class="card-header">
-                <i class="fa-solid fa-lightbulb card-icon"></i>
-                <span>Streetlight Control</span>
+                <div class="card-header-left">
+                    <i class="fa-solid fa-power-off card-icon"></i>
+                    <span>Master Control</span>
+                </div>
             </div>
             <div class="control-group">
-                <span style="font-weight: 600;">Manual Override</span>
+                <span style="font-weight: 600;" id="systemStatusText">System OFF</span>
                 <label class="switch">
-                    <input type="checkbox" id="ledToggle" onchange="toggleLed()">
+                    <input type="checkbox" id="systemToggle">
                     <span class="slider"></span>
                 </label>
             </div>
-            <div class="card-subtext" id="ledStatus">Light is currently OFF</div>
+            <div class="card-subtext">Toggle entire street system</div>
         </div>
-
     </div>
 
+    <div class="content-grid">
+        <div class="card" style="min-height: 400px;">
+            <div class="card-header">
+                <div class="card-header-left">
+                    <i class="fa-solid fa-chart-line card-icon"></i>
+                    <span>Energy Consumption (Live)</span>
+                </div>
+            </div>
+            <div style="flex-grow: 1; position: relative;">
+                <canvas id="liveChart"></canvas>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <div class="card-header-left">
+                    <i class="fa-solid fa-list card-icon"></i>
+                    <span>Activity Logs</span>
+                </div>
+                <button onclick="downloadExcel()" class="btn-download"><i class="fa-solid fa-download"></i> Export CSV</button>
+            </div>
+            <div style="overflow-x: auto; max-height: 400px; overflow-y: auto;">
+                <table id="logTable">
+                    <thead>
+                        <tr>
+                            <th>Time</th>
+                            <th>Type</th>
+                            <th>Duration</th>
+                            <th>Energy (Wh)</th>
+                            <th>Reason</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast">Notification</div>
+
     <script>
-        // Simple script to update the toggle text
-        function toggleLed() {
-            const checkBox = document.getElementById("ledToggle");
-            const statusText = document.getElementById("ledStatus");
-            if (checkBox.checked == true){
-                statusText.innerText = "Light is currently ON";
-                statusText.style.color = "var(--accent-color)";
+        // 1. FIREBASE CONFIGURATION
+        // REPLACE THESE WITH YOUR ACTUAL KEYS FROM FIREBASE CONSOLE
+        const firebaseConfig = {
+            apiKey: "AIzaSyA77Zr4s-pVwlqo4nLqJH8P3bLF1116nCw",
+            authDomain: "smart-street-system.firebaseapp.com",
+            databaseURL: "https://smart-street-system-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "smart-street-system",
+        };
+        
+        if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+        
+        let allLogs = [];
+        let chartInstance = null;
+
+        // --- A. LIVE STATUS LOGIC ---
+        db.ref('street_status').on('value', snap => {
+            const d = snap.val() || {};
+            
+            // Update Text Cards
+            document.getElementById('bat_volts').innerText = (d.battery_volts || 0).toFixed(1) + " V";
+            document.getElementById('bat_pct').innerText = (d.battery_pct || 0) + " %";
+            
+            // Update Toggle Switch UI
+            const toggle = document.getElementById('systemToggle');
+            const statusText = document.getElementById('systemStatusText');
+            
+            toggle.checked = d.system_enabled; 
+            
+            if (d.system_enabled) {
+                statusText.innerText = "System Active";
+                statusText.style.color = "var(--success-color)";
             } else {
-                statusText.innerText = "Light is currently OFF";
+                statusText.innerText = "System Disabled";
                 statusText.style.color = "var(--text-secondary)";
             }
-        }
-    </script>
-</body>
-</html>
+        });
+
+        // Listen for user clicking the switch
+        document.getElementById('systemToggle').addEventListener('change', function() {
+            const newState = this.checked;
+            db.ref('street_status/system_enabled').set(newState)
+              .then(() => showToast(newState ? "System Activated" : "System Deactivated", "success"))
+              .catch(err => showToast("Error: " + err.message, "error"));
+        });
+
+        // --- B. GRAPH SETUP (COLOR CORRECTION) ---
+        const ctx = document.getElementById('liveChart').getContext('2d');
+        let gradient = ctx.createLinearGradient(0, 0, 0, 400);
+        gradient.addColorStop(0, 'rgba(52, 152, 219, 0.4)'); // Blue
+        gradient.addColorStop(1, 'rgba(52, 152, 219, 0.0)');
+
+        chartInstance = new Chart(ctx, {
+            type: 'line',
+            data: { 
+                labels: [], 
+                datasets: [{ 
+                    label: 'Energy (Wh)', 
+                    data: [], 
+                    borderColor: '#3498db', 
+                    backgroundColor: gradient, 
+                    borderWidth: 2, 
+                    fill: true,

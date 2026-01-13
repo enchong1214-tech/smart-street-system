@@ -31,7 +31,24 @@
     .free { background-color: #28a745; box-shadow: 0 0 15px rgba(40, 167, 69, 0.5); }
     .busy { background-color: #dc3545; box-shadow: 0 0 15px rgba(220, 53, 69, 0.5); }
 
-    .admin-link { margin-top: 40px; display: block; color: #aaa; text-decoration: none; font-size: 0.8em; }
+    /* ADMIN LINK STYLING */
+    .admin-link { 
+        margin-top: 40px; 
+        display: inline-block; 
+        color: #7f8c8d; 
+        text-decoration: none; 
+        font-size: 0.9em; 
+        padding: 10px 20px;
+        border: 1px solid transparent;
+        border-radius: 5px;
+        transition: 0.3s;
+        cursor: pointer;
+    }
+    .admin-link:hover {
+        border-color: #bdc3c7;
+        color: #2c3e50;
+        background: #fff;
+    }
   </style>
   
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
@@ -71,18 +88,25 @@
       <span id="co2Saved" class="big-stat" style="color: #4caf50;">0 g</span>
     </div>
 
-    <a href="admin.html" class="admin-link">Admin Login Portal</a>
+    <a onclick="attemptLogin()" class="admin-link">
+        <i class="fa fa-lock"></i> Admin Login Portal
+    </a>
   </div>
 
   <script>
     // --- 1. FIREBASE CONFIG ---
+    // (Ensure these match your Admin Page config)
     const firebaseConfig = {
       apiKey: "AIzaSyA77Zr4s-pVwlqo4nLqJH8P3bLF1116nCw",
       authDomain: "smart-street-system.firebaseapp.com",
       databaseURL: "https://smart-street-system-default-rtdb.asia-southeast1.firebasedatabase.app",
       projectId: "smart-street-system",
     };
-    firebase.initializeApp(firebaseConfig);
+    
+    // Check if Firebase is already initialized
+    if (!firebase.apps.length) {
+        firebase.initializeApp(firebaseConfig);
+    }
     const db = firebase.database();
 
     // --- 2. LIVE STATUS LOGIC ---
@@ -130,6 +154,22 @@
       }
     }
     getWeather();
+
+    // --- 5. SECURITY LOGIN LOGIC ---
+    function attemptLogin() {
+        // SET YOUR PASSWORD HERE
+        const correctPassword = "1234"; 
+        
+        const userEntry = prompt("🔒 Enter Admin Access Code:");
+        
+        if (userEntry === correctPassword) {
+            // If correct, go to admin page
+            window.location.href = "admin.html";
+        } else if (userEntry !== null) {
+            // If wrong (and they didn't click cancel)
+            alert("❌ Access Denied: Incorrect Code");
+        }
+    }
   </script>
 </body>
 </html>
