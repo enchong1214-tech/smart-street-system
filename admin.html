@@ -18,7 +18,7 @@
             --bg-body: #f3f6f9;       
             --bg-card: #ffffff;       
             --text-primary: #2c3e50;  
-            --text-secondary: #555555; /* Darker grey for better visibility */
+            --text-secondary: #555555;
             --accent-color: #3498db;  
             --success-color: #2ecc71; 
             --danger-color: #e74c3c; 
@@ -144,9 +144,9 @@
             <div class="card-header">
                 <div class="card-header-left">
                     <i class="fa-solid fa-list card-icon"></i>
-                    <span>Activity Logs</span>
+                    <span>Today's Activity Logs</span>
                 </div>
-                <button onclick="downloadExcel()" class="btn-download"><i class="fa-solid fa-download"></i> Export CSV</button>
+                <button onclick="downloadExcel()" class="btn-download"><i class="fa-solid fa-download"></i> Download Daily Report</button>
             </div>
             <div style="overflow-x: auto; max-height: 400px; overflow-y: auto;">
                 <table id="logTable">
@@ -170,7 +170,7 @@
 
     <script>
         // 1. FIREBASE CONFIGURATION
-        // REPLACE THESE WITH YOUR ACTUAL KEYS FROM FIREBASE CONSOLE
+        // TODO: PASTE YOUR FIREBASE CONFIG HERE
         const firebaseConfig = {
             apiKey: "AIzaSyA77Zr4s-pVwlqo4nLqJH8P3bLF1116nCw",
             authDomain: "smart-street-system.firebaseapp.com",
@@ -181,18 +181,15 @@
         if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
         
-        let allLogs = [];
+        let allLogs = []; // This will now store only TODAY's logs
         let chartInstance = null;
 
         // --- A. LIVE STATUS LOGIC ---
         db.ref('street_status').on('value', snap => {
             const d = snap.val() || {};
-            
-            // Update Text Cards
             document.getElementById('bat_volts').innerText = (d.battery_volts || 0).toFixed(1) + " V";
             document.getElementById('bat_pct').innerText = (d.battery_pct || 0) + " %";
             
-            // Update Toggle Switch UI
             const toggle = document.getElementById('systemToggle');
             const statusText = document.getElementById('systemStatusText');
             
@@ -207,7 +204,6 @@
             }
         });
 
-        // Listen for user clicking the switch
         document.getElementById('systemToggle').addEventListener('change', function() {
             const newState = this.checked;
             db.ref('street_status/system_enabled').set(newState)
@@ -215,10 +211,10 @@
               .catch(err => showToast("Error: " + err.message, "error"));
         });
 
-        // --- B. GRAPH SETUP (COLOR CORRECTION) ---
+        // --- B. GRAPH SETUP ---
         const ctx = document.getElementById('liveChart').getContext('2d');
         let gradient = ctx.createLinearGradient(0, 0, 0, 400);
-        gradient.addColorStop(0, 'rgba(52, 152, 219, 0.4)'); // Blue
+        gradient.addColorStop(0, 'rgba(52, 152, 219, 0.4)');
         gradient.addColorStop(1, 'rgba(52, 152, 219, 0.0)');
 
         chartInstance = new Chart(ctx, {
@@ -231,4 +227,109 @@
                     borderColor: '#3498db', 
                     backgroundColor: gradient, 
                     borderWidth: 2, 
-                    fill: true,
+                    fill: true, 
+                    tension: 0.4,
+                    pointBackgroundColor: '#ffffff',
+                    pointBorderColor: '#3498db',
+                    pointRadius: 4
+                }] 
+            },
+            options: { 
+                responsive: true, 
+                maintainAspectRatio: false,
+                scales: { 
+                    x: { grid: {display: false}, ticks: {color:'#333333', font: {weight: 'bold'}} }, 
+                    y: { beginAtZero: true, grid: {color: '#eeeeee', borderDash: [5, 5]}, ticks: {color:'#333333', font: {weight: 'bold'}} } 
+                }, 
+                plugins: { legend: { display: false } } 
+            }
+        });
+
+        // --- C. LOGS LOGIC (UPDATED FOR "TODAY ONLY") ---
+        listenForLogs(db, 'bench_logs', 'BENCH');
+        listenForLogs(db, 'light_logs', 'LIGHT');
+
+        function listenForLogs(db, path, type) {
+            // UPDATED: Limit increased to 500 to grab all potential events for the day
+            db.ref(path).limitToLast(500).on('child_added', snap => {
+                const d = snap.val();
+                const dateObj = getDateFromId(snap.key); 
+                
+                // --- NEW FILTER: CHECK IF DATE IS TODAY ---
+                const today = new Date();
+                const isToday = (dateObj.getDate() === today.getDate() && 
+                                 dateObj.getMonth() === today.getMonth() && 
+                                 dateObj.getFullYear() === today.getFullYear());
+
+                // If not today, stop here (do not add to table)
+                if (!isToday) return;
+
+                const timeNow = dateObj.toLocaleTimeString();
+                const fullDate = dateObj.toLocaleString(); // Shows date & time
+
+                const badgeColor = type === 'BENCH' ? '#2ecc71' : '#e67e22'; 
+
+                const row = `<tr>
+                    <td style="color:#555; font-size:0.85em;">${fullDate}</td>
+                    <td><span style="background:${badgeColor}20; color:${badgeColor}; padding:4px 8px; border-radius:4px; font-weight:600; font-size:0.8em;">${type}</span></td>
+                    <td>${d.duration_sec}s</td>
+                    <td style="font-weight:600;">${d.energy_est_wh ? d.energy_est_wh.toFixed(4) : '0.000'}</td>
+                    <td>${d.event || d.reason}</td>
+                </tr>`;
+                
+                const tbody = document.getElementById('logTable').querySelector('tbody');
+                tbody.insertAdjacentHTML('afterbegin', row);
+
+                addGraphData(timeNow, d.energy_est_wh || 0);
+                allLogs.push({ date: fullDate, type: type, ...d });
+            });
+        }
+
+        function addGraphData(label, data) {
+            if (!chartInstance) return;
+            chartInstance.data.labels.push(label);
+            chartInstance.data.datasets[0].data.push(data);
+            if (chartInstance.data.labels.length > 20) { // Keep graph manageable
+                chartInstance.data.labels.shift();
+                chartInstance.data.datasets[0].data.shift();
+            }
+            chartInstance.update();
+        }
+
+        // --- UTILS ---
+        function getDateFromId(pushId) {
+            const PUSH_CHARS = "-0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ_abcdefghijklmnopqrstuvwxyz";
+            let time = 0;
+            for (let i = 0; i < 8; i++) time = time * 64 + PUSH_CHARS.indexOf(pushId.charAt(i));
+            return new Date(time);
+        }
+
+        // UPDATED EXCEL DOWNLOAD
+        window.downloadExcel = function() {
+            // Generate Filename with Today's Date
+            const todayStr = new Date().toLocaleDateString().replace(/\//g, '-');
+            const filename = `SmartStreet_Report_${todayStr}.csv`;
+
+            let csv = "data:text/csv;charset=utf-8,Time,Type,Duration(s),Energy(Wh),Reason\n";
+            
+            // This 'allLogs' array now ONLY contains today's filtered data
+            allLogs.forEach(r => csv += `${r.date},${r.type},${r.duration_sec},${r.energy_est_wh},${r.event || r.reason}\n`);
+            
+            const link = document.createElement("a");
+            link.href = encodeURI(csv);
+            link.download = filename;
+            document.body.appendChild(link);
+            link.click();
+            showToast("Report Downloaded Successfully", "success");
+        }
+
+        function showToast(message, type) {
+            var x = document.getElementById("toast");
+            x.innerText = message;
+            x.style.backgroundColor = type === "success" ? "#2ecc71" : "#e74c3c";
+            x.className = "show";
+            setTimeout(function(){ x.className = x.className.replace("show", ""); }, 3000);
+        }
+    </script>
+</body>
+</html>
